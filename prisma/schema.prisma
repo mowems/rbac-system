@@ -1,0 +1,73 @@
+generator client {
+  provider = "prisma-client-js"
+  seed     = "ts-node prisma/seed.ts"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique
+  password  String
+  createdAt DateTime @default(now())
+
+  locationId String?   // Foreign key
+  location   Location? @relation(fields: [locationId], references: [id], onDelete: SetNull)
+
+  roles UserRole[] // Relation to roles
+
+  @@index([email]) // ✅ Correct index syntax
+}
+
+model Location {
+  id   String  @id @default(uuid())
+  name String
+  users User[]
+}
+
+model UserRole {
+  id        String   @id @default(uuid())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  role      Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  roleId    String
+  createdAt DateTime @default(now())
+
+  @@unique([userId, roleId]) // Prevent duplicate roles
+  @@index([userId])  // Correct index
+  @@index([roleId])  // Correct index
+}
+
+model Role {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  users     UserRole[]
+  rolePermissions RolePermission[]
+
+  @@index([name]) // Index for role lookup
+}
+
+model RolePermission {
+  id           String     @id @default(uuid())
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  roleId       String
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  permissionId String
+  createdAt    DateTime   @default(now())
+
+  @@unique([roleId, permissionId]) // Prevent duplicate role-permission pairs
+  @@index([roleId])  // Correct index
+  @@index([permissionId])  // Correct index
+}
+
+model Permission {
+  id        String   @id @default(uuid())
+  action    String   @unique
+  roles     RolePermission[]
+
+  @@index([action]) // Ensures fast permission checks
+}

@@ -1,0 +1,18 @@
+version: "3.8"
+
+services:
+  dev-db:
+    image: postgres
+    container_name: dev-db
+    restart: always
+    ports:
+      - "5434:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 123
+      POSTGRES_DB: ekkochalldb
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
