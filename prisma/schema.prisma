@@ -20,7 +20,7 @@ model User {
 
   roles UserRole[] // Relation to roles
 
-  @@index([email]) // ✅ Correct index syntax
+  @@index([email]) // Correct index syntax
 }
 
 model Location {
