@@ -18,9 +18,9 @@ model User {
   locationId String?   // Foreign key
   location   Location? @relation(fields: [locationId], references: [id], onDelete: SetNull)
 
-  roles UserRole[] // Relation to roles
+  roles UserRole[] // one to many relation to roles
 
-  @@index([email]) // Correct index syntax
+  @@index([email])
 }
 
 model Location {
@@ -31,15 +31,18 @@ model Location {
 
 model UserRole {
   id        String   @id @default(uuid())
+
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId    String
+
   role      Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
   roleId    String
+
   createdAt DateTime @default(now())
 
   @@unique([userId, roleId]) // Prevent duplicate roles
-  @@index([userId])  // Correct index
-  @@index([roleId])  // Correct index
+  @@index([userId])
+  @@index([roleId])
 }
 
 model Role {
@@ -48,7 +51,7 @@ model Role {
   users     UserRole[]
   rolePermissions RolePermission[]
 
-  @@index([name]) // Index for role lookup
+  @@index([name])
 }
 
 model RolePermission {
@@ -60,8 +63,8 @@ model RolePermission {
   createdAt    DateTime   @default(now())
 
   @@unique([roleId, permissionId]) // Prevent duplicate role-permission pairs
-  @@index([roleId])  // Correct index
-  @@index([permissionId])  // Correct index
+  @@index([roleId])
+  @@index([permissionId])
 }
 
 model Permission {
@@ -69,5 +72,5 @@ model Permission {
   action    String   @unique
   roles     RolePermission[]
 
-  @@index([action]) // Ensures fast permission checks
+  @@index([action])
 }
