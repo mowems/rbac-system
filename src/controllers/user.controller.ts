@@ -32,7 +32,7 @@ export const getUsers = async (req: AuthenticatedRequest, res: Response): Promis
 
     const userId = req.user.id;
 
-    // Fetch the full user with roles properly included
+    // Fetch the user including user's roles from db
     const requestingUser = await prisma.user.findUnique({
       where: { id: userId },
       include: { roles: { include: { role: true } } }, // Ensure roles are fetched

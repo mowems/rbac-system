@@ -1,11 +1,14 @@
 import { PrismaClient } from '@prisma/client';
+// import brcypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
+// Defines a User type by resolving the return type of prisma.user.findUnique()
 type User = Awaited<ReturnType<typeof prisma.user.findUnique>>;
 
 // Create a new user
 export const createUserService = async (name: string, email: string, password: string) => {
+  // Issue - Hash password: const hashedPassword = brcypt.hash(password, 10);
   return prisma.user.create({
     data: { name, email, password },
   });
@@ -27,6 +30,8 @@ export const getUsersService = async (requestingUser: { id: string; roles: strin
 
   let whereCondition: any = {};
 
+  // Applying filter to get all users request by location - userRoles could be 'National', 'City', or 'Suburb' and determine the extent of what a user sees for this request
+  // Because 'National', 'City', or 'Suburb' isn't included in seed.ts file, this function will always return all users for authenticated users
   if (userRoles.includes('National')) {
     // No filter needed
   } else if (userRoles.includes('City')) {
@@ -62,7 +67,6 @@ export const getUsersService = async (requestingUser: { id: string; roles: strin
   return users;
 };
 
-
 // Get a specific user by ID
 export const getUserByIdService = async (id: string) => {
   return prisma.user.findUnique({ where: { id } });
@@ -70,6 +74,7 @@ export const getUserByIdService = async (id: string) => {
 
 // Update user details
 export const updateUserService = async (id: string, name: string, email: string, password: string) => {
+  // Issue - Hash password
   return prisma.user.update({
     where: { id },
     data: { name, email, password },
