@@ -54,6 +54,7 @@ export const registerUserService = async (name: string, email: string, password:
 export const loginUserService = async (email: string, password: string) => {
   console.log("Attempting login with email:", email);
 
+  // Find the user by email and include userRoles & permissions
   const user = await prisma.user.findUnique({
     where: { email: email.toLowerCase() },
     include: {
@@ -70,7 +71,6 @@ export const loginUserService = async (email: string, password: string) => {
       },
     },
   });
-
 
   if (!user) {
     console.log("User not found in DB");
