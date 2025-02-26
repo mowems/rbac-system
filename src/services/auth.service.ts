@@ -79,6 +79,7 @@ export const loginUserService = async (email: string, password: string) => {
 
   console.log("User found:", JSON.stringify(user, null, 2));
 
+  // compare req password with db password
   const isPasswordValid = await bcrypt.compare(password, user.password);
   if (!isPasswordValid) {
     console.log("Password does not match");
@@ -93,8 +94,6 @@ export const loginUserService = async (email: string, password: string) => {
     ur.role.rolePermissions.map((rp) => rp.permission.action)
   );
 
-  console.log("Roles:", roles);
-  console.log("Permissions:", permissions);
   console.log("JWT Payload:", { id: user.id, roles, permissions });
 
   if (!process.env.JWT_SECRET) {
