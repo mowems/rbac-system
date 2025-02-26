@@ -9,6 +9,7 @@ describe("CRUD Operations Tests", () => {
   let adminToken: string;
   let userId: string;
 
+  // CRUD Test Setup - Fetch an admin user from Db using email, login and store token for admin
   beforeAll(async () => {
     console.log("Setting up test database for CRUD...");
 
@@ -52,6 +53,7 @@ describe("CRUD Operations Tests", () => {
     console.log("Admin token generated:", adminToken);
   });
 
+  // Cleanup after tests
   afterAll(async () => {
     await prisma.$disconnect();
     console.log("Disconnected from test database");
