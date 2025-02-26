@@ -31,6 +31,7 @@ export const authenticateUser = async (
 
   try {
     console.log("Verifying token...");
+    // Verify token using jwt.verify and extract user roles and permissions
     const decoded = jwt.verify(token, process.env.JWT_SECRET) as JwtPayload & {
       id: string;
       roles: string[];
@@ -79,6 +80,7 @@ export const authenticateUser = async (
 export const checkPermission =
   (requiredPermissions: string[]) =>
   (req: AuthenticatedRequest, res: Response, next: NextFunction): void => {
+
     if (!req.user || !req.user.permissions) {
       console.log("Access denied: No permissions assigned.");
       res.status(403).json({ error: 'Access denied. No permissions assigned.' });
