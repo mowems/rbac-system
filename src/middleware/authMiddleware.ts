@@ -13,8 +13,10 @@ export const authenticateUser = async (
   res: Response,
   next: NextFunction
 ): Promise<void> => {
+
   const token = req.headers.authorization?.split(" ")[1];
 
+  // token and JWT_SECRET check
   if (!token) {
     console.log("No token provided");
     res.status(401).json({ error: "No token provided" });
@@ -50,6 +52,7 @@ export const authenticateUser = async (
       return;
     }
 
+    // Modify request object and send to the next middleware function
     req.user = {
       id: user.id,
       roles: Array.isArray(decoded.roles) ? decoded.roles : [], // Ensure array
