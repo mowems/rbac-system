@@ -33,6 +33,7 @@ export const registerUserService = async (name: string, email: string, password:
 
   console.log("Assigning role 'User' to:", newUser.email);
 
+  // Create new record in userRole table
   await prisma.userRole.create({
     data: {
       userId: newUser.id,
