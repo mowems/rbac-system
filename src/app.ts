@@ -33,7 +33,7 @@ app.use('/api/assignments', authenticateUser, assignmentRoutes);
 
 // Default Route
 app.get('/', (req, res) => {
-  res.json({ message: 'Welcome to the Ekko API!' });
+  res.json({ message: 'Welcome to the RBAC-SYSTEM API!' });
 });
 
 export default app;
