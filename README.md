@@ -1,4 +1,4 @@
-# Ekko Challenge - Role-Based Access Control (RBAC) API
+# Role-Based Access Control (RBAC) API
 
 This project is a full stack Role Based Access Control (RBAC) API built with **Node.js, Express, Prisma, and PostgreSQL**. It allows users to be assigned roles and permissions dynamically, ensuring secure access control.
 
@@ -81,8 +81,8 @@ Testing
 ### **Clone the repository**
 
 ```sh
-git clone https://github.com/mowems/ekko-challenge-davidu.git
-cd ekko-challenge
+git clone https://github.com/mowems/rbac-system.git
+cd rbac-system
 ```
 
 ### NOTES \*\*
