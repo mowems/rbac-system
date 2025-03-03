@@ -39,7 +39,7 @@ export const logoutUser = async (req: Request, res: Response) => {
        return res.status(401).json({ error: "Unauthorized: No user ID found" });
      }
 
-     const message = await logoutUserService();
+     const message = await logoutUserService(userId);
      res.json(message);
   } catch (error) {
     console.error("Logout error:", error);

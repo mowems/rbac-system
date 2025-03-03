@@ -2,14 +2,19 @@ import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import dotenv from 'dotenv';
+import redis from "../utils/redis";
 
 dotenv.config();
 const prisma = new PrismaClient();
 
-// Register User
+// Cache expiration (1 hour)
+const CACHE_EXPIRATION = 3600;
+
+// **Register User Service (Invalidate Cache)**
 export const registerUserService = async (name: string, email: string, password: string) => {
   console.log("Registering user:", email);
 
+  // Check if user exists
   const existingUser = await prisma.user.findUnique({ where: { email } });
   if (existingUser) {
     console.error("User already exists:", email);
@@ -17,12 +22,9 @@ export const registerUserService = async (name: string, email: string, password:
   }
 
   const hashedPassword = await bcrypt.hash(password, 10);
-
   const newUser = await prisma.user.create({
     data: { name, email, password: hashedPassword },
   });
-
-  console.log("User created:", newUser);
 
   // Assign default role "User"
   const roleRecord = await prisma.role.findUnique({ where: { name: "User" } });
@@ -31,9 +33,6 @@ export const registerUserService = async (name: string, email: string, password:
     throw new Error("Role 'User' does not exist");
   }
 
-  console.log("Assigning role 'User' to:", newUser.email);
-
-  // Create new record in userRole table
   await prisma.userRole.create({
     data: {
       userId: newUser.id,
@@ -41,7 +40,8 @@ export const registerUserService = async (name: string, email: string, password:
     },
   });
 
-  console.log("Role assigned:", newUser.email);
+  // Invalidate cache (remove outdated user data)
+  await redis.del(`user:${newUser.id}`);
 
   return {
     id: newUser.id,
@@ -51,15 +51,41 @@ export const registerUserService = async (name: string, email: string, password:
   };
 };
 
-// Login User (Fixed)
+// **Login User with Caching**
 export const loginUserService = async (email: string, password: string) => {
   console.log("Attempting login with email:", email);
 
-  // Find the user by email and include userRoles & permissions
+  // **Check Cache First (Don't store password in cache!)**
+  const cachedUser = await redis.get(`user:email:${email}`);
+  if (cachedUser) {
+    const user = JSON.parse(cachedUser);
+    console.log("User retrieved from cache:", user);
+
+    // Fetch password from DB instead of Redis
+    const dbUser = await prisma.user.findUnique({ where: { email } });
+    if (!dbUser) throw new Error("Unauthorized: Invalid email or password");
+
+    const isPasswordValid = await bcrypt.compare(password, dbUser.password);
+    if (!isPasswordValid) throw new Error("Unauthorized: Invalid email or password");
+
+    // Generate JWT
+    const token = jwt.sign(
+      { id: user.id, roles: user.roles, permissions: user.permissions },
+      process.env.JWT_SECRET as string,
+      { expiresIn: "1h" }
+    );
+
+    // Cache token
+    await redis.setex(`token:${user.id}`, CACHE_EXPIRATION, token);
+    return token;
+  }
+
+
+  // **Fetch from DB if not in cache**
   const user = await prisma.user.findUnique({
     where: { email: email.toLowerCase() },
     include: {
-      roles: { // Correct reference
+      roles: {
         include: {
           role: {
             include: {
@@ -74,46 +100,57 @@ export const loginUserService = async (email: string, password: string) => {
   });
 
   if (!user) {
-    console.log("User not found in DB");
     throw new Error("Unauthorized: Invalid email or password");
   }
 
-  console.log("User found:", JSON.stringify(user, null, 2));
-
-  // compare req password with db password
+  // **Check password securely**
   const isPasswordValid = await bcrypt.compare(password, user.password);
   if (!isPasswordValid) {
-    console.log("Password does not match");
     throw new Error("Unauthorized: Invalid email or password");
   }
 
-  console.log("Generating JWT token...");
-
-  // Extract roles and permissions from the user object
-  const roles = user.roles.map((ur: { role: { name: any; }; }) => ur.role.name);
-  const permissions = user.roles.flatMap((ur: { role: { rolePermissions: any[]; }; }) =>
+  // Extract roles and permissions
+  const roles = user.roles.map((ur) => ur.role.name);
+  const permissions = user.roles.flatMap((ur) =>
     ur.role.rolePermissions.map((rp) => rp.permission.action)
   );
 
-  console.log("JWT Payload:", { id: user.id, roles, permissions });
-
-  if (!process.env.JWT_SECRET) {
-    throw new Error("JWT_SECRET is not defined in environment variables.");
-  }
-
+  // Generate JWT
   const token = jwt.sign(
     { id: user.id, roles, permissions },
-    process.env.JWT_SECRET,
+    process.env.JWT_SECRET as string,
     { expiresIn: "1h" }
   );
 
-  console.log("Token Generated:", token);
+  // **Cache user data (WITHOUT password)**
+  // Store user in cache without hashed password
+  await redis.setex(`user:email:${email}`, CACHE_EXPIRATION, JSON.stringify({
+    id: user.id, email, roles, permissions
+  }));
+
+  await redis.setex(`token:${user.id}`, CACHE_EXPIRATION, token);
 
   return token;
 };
 
-// Logout User
-export const logoutUserService = async (): Promise<{ message: string }> => {
-  console.log("Logout successful.");
-  return { message: "Logout successful. Please remove token from localStorage or cookies." };
+// **Logout User (Invalidate Token)**
+export const logoutUserService = async (userId: string): Promise<{ message: string }> => {
+  if (!userId) {
+    throw new Error("Missing userId in logout request");
+  }
+
+  console.log("Logging out user:", userId);
+
+  // Remove cached user session
+  await redis.del(`user:${userId}`);
+  await redis.del(`token:${userId}`);
+
+  return { message: "Logged out successfully. Token invalidated." };
 };
+
+// Function to close Prisma connection
+export const closePrisma = async () => {
+  await prisma.$disconnect();
+};
+
+export { prisma };

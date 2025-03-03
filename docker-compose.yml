@@ -10,7 +10,7 @@ services:
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: 123
-      POSTGRES_DB: ekkochalldb
+      POSTGRES_DB: rbac_db
     volumes:
       - postgres_data:/var/lib/postgresql/data
 

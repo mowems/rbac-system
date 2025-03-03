@@ -1,5 +1,10 @@
 import request from "supertest";
 import app from "../src/app";
+import Redis from "ioredis";
+import { PrismaClient } from "@prisma/client";
+
+const redis = new Redis();
+const prisma = new PrismaClient();
 
 describe("Authentication Tests", () => {
   let userToken: string;
@@ -55,7 +60,13 @@ describe("Authentication Tests", () => {
 
     expect(res.status).toBe(200);
     expect(res.body.message).toBe(
-      "Logout successful. Please remove token from localStorage or cookies."
+      "Logged out successfully. Token invalidated."
     );
   });
+});
+
+
+afterAll(async () => {
+  await redis.quit();
+  await prisma.$disconnect();
 });

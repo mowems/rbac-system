@@ -1,0 +1,18 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "iam:CreateRole",
+                "iam:AttachRolePolicy",
+                "iam:PassRole",
+                "ecs:RegisterTaskDefinition",
+                "ecs:CreateService",
+                "ecs:UpdateService",
+                "ecs:RunTask"
+            ],
+            "Resource": "*"
+        }
+    ]
+}

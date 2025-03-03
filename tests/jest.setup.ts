@@ -1,15 +1,24 @@
 import { PrismaClient } from "@prisma/client";
 import dotenv from "dotenv";
+import Redis from "ioredis";
+import bcrypt from "bcryptjs";
+import redisClient, { closeRedis } from "../src/utils/redis";
 
 dotenv.config();
 
 const prisma = new PrismaClient();
 
 beforeAll(async () => {
+  console.log("Setting test JWT_SECRET...");
+  process.env.JWT_SECRET = "random_super_secret_key";  // Set a consistent secret for testing
+
+  console.log("Flushing Redis cache...");
+  await redisClient.flushall(); // Clears Redis cache before tests
+
   console.log("Setting up test database...");
 
-  await prisma.$transaction(async (tx: { rolePermission: { deleteMany: (arg0: {}) => any; createMany: (arg0: { data: { roleId: string; permissionId: string; }[]; skipDuplicates: boolean; }) => any; findMany: (arg0: { where: { roleId: string; }; include: { permission: boolean; }; }) => any; }; userRole: { deleteMany: (arg0: {}) => any; }; permission: { deleteMany: (arg0: {}) => any; createMany: (arg0: { data: { id: string; action: string; }[]; skipDuplicates: boolean; }) => any; }; role: { deleteMany: (arg0: {}) => any; createMany: (arg0: { data: { id: string; name: string; }[]; skipDuplicates: boolean; }) => any; }; user: { deleteMany: (arg0: {}) => any; }; }) => {
-    // Clear tables before tests run
+  await prisma.$transaction(async (tx) => {
+    // Clear all tables before running tests
     await tx.rolePermission.deleteMany({});
     await tx.userRole.deleteMany({});
     await tx.permission.deleteMany({});
@@ -36,12 +45,7 @@ beforeAll(async () => {
         { id: "11a802d3-59f7-45b6-9f05-63b9ef404226", action: "READ_USER" },
         { id: "5516b2e0-5035-413f-8b73-b25ccb1bda67", action: "WRITE_USER" },
         { id: "f2c202a3-1d61-41d4-ae2b-6fa5a5a8439d", action: "DELETE_USER" },
-        { id: "e6b89e9e-8e26-4a58-b54f-17b3df2b6c6b", action: "READ_ROLE" },
-        { id: "c6b741c3-5fc7-45f6-a7b5-2576c267db3a", action: "WRITE_ROLE" },
-        { id: "a81e3baf-70b7-403b-bfc1-238e456dc48e", action: "DELETE_ROLE" },
-        { id: "b0c6f30e-2f67-4929-9055-3087a5d426c4", action: "READ_PERMISSION" },
-        { id: "3b89b926-bc70-49d8-9f2a-c4e6b08f5a9d", action: "WRITE_PERMISSION" },
-        { id: "4c11a0c1-4e3f-4994-a989-0f8d5b3e9f6c", action: "DELETE_PERMISSION" },
+        { id: "e6b89e9e-8e26-4a58-b54f-17b3df2b6c6b", action: "ASSIGN_ROLE" },
       ],
       skipDuplicates: true,
     });
@@ -51,31 +55,43 @@ beforeAll(async () => {
     // Assign permissions to the Admin role
     await tx.rolePermission.createMany({
       data: [
-        { roleId: "8f3a1d33-5b9d-4dab-b2df-1433bb45e1f2", permissionId: "11a802d3-59f7-45b6-9f05-63b9ef404226" }, // READ_USER
-        { roleId: "8f3a1d33-5b9d-4dab-b2df-1433bb45e1f2", permissionId: "5516b2e0-5035-413f-8b73-b25ccb1bda67" }, // WRITE_USER
-        { roleId: "8f3a1d33-5b9d-4dab-b2df-1433bb45e1f2", permissionId: "f2c202a3-1d61-41d4-ae2b-6fa5a5a8439d" }, // DELETE_USER
-        { roleId: "8f3a1d33-5b9d-4dab-b2df-1433bb45e1f2", permissionId: "e6b89e9e-8e26-4a58-b54f-17b3df2b6c6b" }, // READ_ROLE
-        { roleId: "8f3a1d33-5b9d-4dab-b2df-1433bb45e1f2", permissionId: "c6b741c3-5fc7-45f6-a7b5-2576c267db3a" }, // WRITE_ROLE
-        { roleId: "8f3a1d33-5b9d-4dab-b2df-1433bb45e1f2", permissionId: "a81e3baf-70b7-403b-bfc1-238e456dc48e" }, // DELETE_ROLE
-        { roleId: "8f3a1d33-5b9d-4dab-b2df-1433bb45e1f2", permissionId: "b0c6f30e-2f67-4929-9055-3087a5d426c4" }, // READ_PERMISSION
-        { roleId: "8f3a1d33-5b9d-4dab-b2df-1433bb45e1f2", permissionId: "3b89b926-bc70-49d8-9f2a-c4e6b08f5a9d" }, // WRITE_PERMISSION
-        { roleId: "8f3a1d33-5b9d-4dab-b2df-1433bb45e1f2", permissionId: "4c11a0c1-4e3f-4994-a989-0f8d5b3e9f6c" }, // DELETE_PERMISSION
+        { roleId: "8f3a1d33-5b9d-4dab-b2df-1433bb45e1f2", permissionId: "11a802d3-59f7-45b6-9f05-63b9ef404226" },
+        { roleId: "8f3a1d33-5b9d-4dab-b2df-1433bb45e1f2", permissionId: "5516b2e0-5035-413f-8b73-b25ccb1bda67" },
+        { roleId: "8f3a1d33-5b9d-4dab-b2df-1433bb45e1f2", permissionId: "f2c202a3-1d61-41d4-ae2b-6fa5a5a8439d" },
+        { roleId: "8f3a1d33-5b9d-4dab-b2df-1433bb45e1f2", permissionId: "e6b89e9e-8e26-4a58-b54f-17b3df2b6c6b" },
       ],
       skipDuplicates: true,
     });
 
     console.log("Admin permissions assigned");
 
-    // Verify permissions exist
-    const adminPermissions = await tx.rolePermission.findMany({
-      where: { roleId: "8f3a1d33-5b9d-4dab-b2df-1433bb45e1f2" },
-      include: { permission: true },
+    // Hash password for test user
+    const hashedPassword = bcrypt.hashSync("AdminPassword123", 10);
+
+    // Insert test users
+    await tx.user.createMany({
+      data: [
+        {
+          id: "1498ae08-a0d9-4c1d-bc8b-a8f38edb2081",
+          name: "Admin User",
+          email: "admin@example.com",
+          password: hashedPassword, // Store hashed password
+          createdAt: new Date(),
+        },
+      ],
+      skipDuplicates: true,
     });
-    console.log("Admin Permissions after setup:", adminPermissions);
+
+    console.log("Test users seeded");
   });
 });
 
+// Close Redis connection and Prisma client after all tests
 afterAll(async () => {
-  await prisma.$disconnect();
-  console.log("Disconnected from test database");
+  console.log("Closing Redis and Prisma connections...");
+
+  await closeRedis(); // Ensure Redis is properly closed
+  await prisma.$disconnect(); // Ensure Prisma is properly closed
+
+  console.log("Redis and Prisma connections closed.");
 });
